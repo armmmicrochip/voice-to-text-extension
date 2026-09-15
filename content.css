@@ -1,0 +1,7 @@
+/*
+ * Voice Input Assistant — page-level content styles
+ *
+ * The mic button itself lives in a Shadow DOM (see content.js) so it
+ * needs no styles here. This file is reserved for any future page-level
+ * adjustments that cannot be done inside the shadow root.
+ */
