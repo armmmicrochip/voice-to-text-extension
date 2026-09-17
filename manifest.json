@@ -22,7 +22,14 @@
       "matches": ["<all_urls>"],
       "js": ["content.js"],
       "css": ["content.css"],
-      "run_at": "document_idle"
+      "run_at": "document_idle",
+      "type": "module"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["shadow.css"],
+      "matches": ["<all_urls>"]
     }
   ],
   "permissions": ["storage"]

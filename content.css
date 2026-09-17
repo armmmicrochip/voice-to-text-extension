@@ -1,7 +1,24 @@
 /*
  * Voice Input Assistant — page-level content styles
  *
- * The mic button itself lives in a Shadow DOM (see content.js) so it
- * needs no styles here. This file is reserved for any future page-level
- * adjustments that cannot be done inside the shadow root.
+ * The mic button lives in a Shadow DOM (shadow.css), so nothing here
+ * affects it. This file covers page-level elements created by the extension.
  */
+
+/* Toast notification injected directly into the page document */
+.via-toast {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(30, 30, 30, 0.92);
+  color: #fff;
+  padding: 10px 16px;
+  border-radius: 6px;
+  font: 14px/1.4 system-ui, sans-serif;
+  z-index: 2147483646;
+  max-width: 340px;
+  text-align: center;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.3);
+  pointer-events: none;
+}
