@@ -5,11 +5,16 @@
  * Business logic lives in modules/; this file is intentionally thin.
  */
 
-import { state }                                          from './modules/state.js';
-import { buildUI, showButton, hideButton, updatePosition } from './modules/ui.js';
-import { startListening, stopListening }                  from './modules/speech.js';
-import { isSupportedField }                               from './modules/fields.js';
-import { loadLanguage, subscribeToLanguageChanges }       from './modules/storage.js';
+import { state } from "./modules/state.js";
+import {
+  buildUI,
+  showButton,
+  hideButton,
+  updatePosition,
+} from "./modules/ui.js";
+import { startListening, stopListening } from "./modules/speech.js";
+import { isSupportedField } from "./modules/fields.js";
+import { loadLanguage, subscribeToLanguageChanges } from "./modules/storage.js";
 
 // ── Event handlers ─────────────────────────────────────────────────────────────
 
@@ -40,7 +45,12 @@ function handleMicClick() {
 
 function handleKeyDown(e) {
   // Alt+Shift+V toggles recording for the focused field
-  if (e.altKey && e.shiftKey && e.key === 'V' && (state.activeField || state.isListening)) {
+  if (
+    e.altKey &&
+    e.shiftKey &&
+    e.key === "V" &&
+    (state.activeField || state.isListening)
+  ) {
     e.preventDefault();
     handleMicClick();
   }
@@ -52,21 +62,24 @@ function init() {
   buildUI();
 
   // mousedown preventDefault keeps focus in the active field during the click
-  state.micBtn.addEventListener('mousedown', e => e.preventDefault());
-  state.micBtn.addEventListener('click', handleMicClick);
+  state.micBtn.addEventListener("mousedown", (e) => e.preventDefault());
+  state.micBtn.addEventListener("click", handleMicClick);
 
-  document.addEventListener('focusin',  handleFocusIn,  true);
-  document.addEventListener('focusout', handleFocusOut, true);
-  document.addEventListener('keydown',  handleKeyDown,  true);
-  window.addEventListener('scroll', updatePosition, { passive: true, capture: true });
-  window.addEventListener('resize', updatePosition, { passive: true });
+  document.addEventListener("focusin", handleFocusIn, true);
+  document.addEventListener("focusout", handleFocusOut, true);
+  document.addEventListener("keydown", handleKeyDown, true);
+  window.addEventListener("scroll", updatePosition, {
+    passive: true,
+    capture: true,
+  });
+  window.addEventListener("resize", updatePosition, { passive: true });
 
   loadLanguage();
   subscribeToLanguageChanges();
 }
 
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', init);
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", init);
 } else {
   init();
 }
