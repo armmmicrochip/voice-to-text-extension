@@ -1,4 +1,5 @@
 import { state } from "./state.js";
+import { SHORTCUT_LABEL } from "./shortcut.js";
 
 const BTN_SIZE = 34; // px — must match shadow.css button width/height
 
@@ -61,7 +62,7 @@ export function setButtonState(listening) {
   state.micBtn.classList.toggle("listening", listening);
   const label = listening ? "Stop voice input" : "Start voice input";
   state.micBtn.setAttribute("aria-label", label);
-  state.micBtn.title = label + " — Alt+Shift+V";
+  state.micBtn.title = `${label} — ${SHORTCUT_LABEL}`;
 }
 
 // ── Transcript preview ─────────────────────────────────────────────────────────

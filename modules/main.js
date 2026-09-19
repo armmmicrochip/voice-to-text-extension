@@ -9,6 +9,7 @@ import { state } from "./state.js";
 import { buildUI, showButton, hideButton, updatePosition } from "./ui.js";
 import { startListening, stopListening } from "./speech.js";
 import { isSupportedField } from "./fields.js";
+import { isToggleShortcut } from "./shortcut.js";
 import { loadLanguage, subscribeToLanguageChanges } from "./storage.js";
 
 // ── Event handlers ─────────────────────────────────────────────────────────────
@@ -39,13 +40,7 @@ function handleMicClick() {
 }
 
 function handleKeyDown(e) {
-  // Alt+Shift+V toggles recording for the focused field
-  if (
-    e.altKey &&
-    e.shiftKey &&
-    e.key === "V" &&
-    (state.activeField || state.isListening)
-  ) {
+  if (isToggleShortcut(e) && (state.activeField || state.isListening)) {
     e.preventDefault();
     handleMicClick();
   }

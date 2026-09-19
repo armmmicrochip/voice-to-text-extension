@@ -1,3 +1,7 @@
+import { SHORTCUT_LABEL } from "./modules/shortcut.js";
+
+document.getElementById("shortcut-label").textContent = SHORTCUT_LABEL;
+
 const select = document.getElementById("lang-select");
 const badge = document.getElementById("status-badge");
 const saveHint = document.getElementById("save-hint");
