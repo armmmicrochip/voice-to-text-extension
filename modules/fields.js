@@ -38,7 +38,11 @@ export function insertText(field, text) {
 
   field.value = before + inserted + after;
   const cursor = start + inserted.length;
-  field.setSelectionRange(cursor, cursor);
+  try {
+    field.setSelectionRange(cursor, cursor);
+  } catch {
+    // type="email" has no selection API and throws InvalidStateError
+  }
 
   // Notify React / Vue / Angular of the programmatic change
   field.dispatchEvent(
