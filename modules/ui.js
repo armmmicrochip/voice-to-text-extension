@@ -1,4 +1,5 @@
-import { state } from './state.js';
+import { state } from "./state.js";
+import { SHORTCUT_LABEL } from "./shortcut.js";
 
 const BTN_SIZE = 34; // px — must match shadow.css button width/height
 
@@ -14,30 +15,31 @@ const STOP_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
 // ── DOM construction ───────────────────────────────────────────────────────────
 
 export function buildUI() {
-  state.host = document.createElement('div');
-  state.host.style.cssText = 'position:fixed;z-index:2147483647;display:none;pointer-events:none;';
+  state.host = document.createElement("div");
+  state.host.style.cssText =
+    "position:fixed;z-index:2147483647;display:none;pointer-events:none;";
 
-  const shadow = state.host.attachShadow({ mode: 'open' });
+  const shadow = state.host.attachShadow({ mode: "open" });
 
   // Load shadow.css via extension URL (listed in web_accessible_resources)
-  const link = document.createElement('link');
-  link.rel = 'stylesheet';
-  link.href = chrome.runtime.getURL('shadow.css');
+  const link = document.createElement("link");
+  link.rel = "stylesheet";
+  link.href = chrome.runtime.getURL("shadow.css");
 
-  const wrapper = document.createElement('div');
-  wrapper.className = 'wrapper';
+  const wrapper = document.createElement("div");
+  wrapper.className = "wrapper";
 
-  state.micBtn = document.createElement('button');
-  state.micBtn.type = 'button';
+  state.micBtn = document.createElement("button");
+  state.micBtn.type = "button";
 
-  state.previewEl = document.createElement('div');
-  state.previewEl.className = 'preview';
+  state.previewEl = document.createElement("div");
+  state.previewEl.className = "preview";
 
-  state.finalSpan = document.createElement('span');
-  state.finalSpan.className = 'final';
+  state.finalSpan = document.createElement("span");
+  state.finalSpan.className = "final";
 
-  state.interimSpan = document.createElement('span');
-  state.interimSpan.className = 'interim';
+  state.interimSpan = document.createElement("span");
+  state.interimSpan.className = "interim";
 
   state.previewEl.appendChild(state.finalSpan);
   state.previewEl.appendChild(state.interimSpan);
@@ -57,22 +59,22 @@ export function buildUI() {
 export function setButtonState(listening) {
   if (!state.micBtn) return;
   state.micBtn.innerHTML = listening ? STOP_SVG : MIC_SVG;
-  state.micBtn.classList.toggle('listening', listening);
-  const label = listening ? 'Stop voice input' : 'Start voice input';
-  state.micBtn.setAttribute('aria-label', label);
-  state.micBtn.title = label + ' — Alt+Shift+V';
+  state.micBtn.classList.toggle("listening", listening);
+  const label = listening ? "Stop voice input" : "Start voice input";
+  state.micBtn.setAttribute("aria-label", label);
+  state.micBtn.title = `${label} — ${SHORTCUT_LABEL}`;
 }
 
 // ── Transcript preview ─────────────────────────────────────────────────────────
 
 export function updatePreview(final, interim) {
-  state.finalSpan.textContent   = final;
+  state.finalSpan.textContent = final;
   state.interimSpan.textContent = interim;
-  state.previewEl.classList.toggle('visible', !!(final || interim));
+  state.previewEl.classList.toggle("visible", !!(final || interim));
 }
 
 export function clearPreview() {
-  updatePreview('', '');
+  updatePreview("", "");
 }
 
 // ── Button positioning ─────────────────────────────────────────────────────────
@@ -80,9 +82,9 @@ export function clearPreview() {
 export function positionButton() {
   if (!state.activeField || !state.host) return;
   const rect = state.activeField.getBoundingClientRect();
-  const gap  = 6;
+  const gap = 6;
 
-  let top  = rect.top + (rect.height - BTN_SIZE) / 2;
+  let top = rect.top + (rect.height - BTN_SIZE) / 2;
   let left = rect.right + gap;
 
   // Overflow right → tuck inside the field
@@ -91,32 +93,32 @@ export function positionButton() {
   // Clamp vertically
   top = Math.max(4, Math.min(top, window.innerHeight - BTN_SIZE - 4));
 
-  state.host.style.top  = top  + 'px';
-  state.host.style.left = left + 'px';
+  state.host.style.top = top + "px";
+  state.host.style.left = left + "px";
 }
 
 export function showButton() {
   positionButton();
-  state.host.style.display      = 'block';
-  state.host.style.pointerEvents = 'auto';
+  state.host.style.display = "block";
+  state.host.style.pointerEvents = "auto";
 }
 
 export function hideButton() {
-  state.host.style.display      = 'none';
-  state.host.style.pointerEvents = 'none';
+  state.host.style.display = "none";
+  state.host.style.pointerEvents = "none";
   clearPreview();
   state.activeField = null;
 }
 
 export function updatePosition() {
-  if (state.host && state.host.style.display !== 'none') positionButton();
+  if (state.host && state.host.style.display !== "none") positionButton();
 }
 
 // ── Toast notification ─────────────────────────────────────────────────────────
 
 export function showToast(message) {
-  const toast = document.createElement('div');
-  toast.className   = 'via-toast';
+  const toast = document.createElement("div");
+  toast.className = "via-toast";
   toast.textContent = message;
   document.documentElement.appendChild(toast);
   setTimeout(() => toast.remove(), 4000);

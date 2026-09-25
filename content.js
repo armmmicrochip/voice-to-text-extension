@@ -1,72 +1,15 @@
 /**
- * Voice Input Assistant — entry point
+ * Voice Input Assistant — content script loader
  *
- * Wires together the focused modules and registers all event listeners.
- * Business logic lives in modules/; this file is intentionally thin.
+ * The content_scripts manifest key has no "type": "module" option, so this
+ * file must stay a classic script (no static import/export). It loads the
+ * real ES-module entry point with dynamic import(), which classic scripts
+ * are allowed to use. The modules must be listed in web_accessible_resources.
  */
-
-import { state }                                          from './modules/state.js';
-import { buildUI, showButton, hideButton, updatePosition } from './modules/ui.js';
-import { startListening, stopListening }                  from './modules/speech.js';
-import { isSupportedField }                               from './modules/fields.js';
-import { loadLanguage, subscribeToLanguageChanges }       from './modules/storage.js';
-
-// ── Event handlers ─────────────────────────────────────────────────────────────
-
-function handleFocusIn(e) {
-  if (!isSupportedField(e.target)) return;
-  state.activeField = e.target;
-  showButton();
-}
-
-function handleFocusOut() {
-  // Wait for the next focusin (if any) before deciding to hide.
-  setTimeout(() => {
-    const focused = document.activeElement;
-    if (isSupportedField(focused)) {
-      state.activeField = focused;
-      showButton();
-    } else if (!state.isListening) {
-      hideButton();
-    }
-    // Keep button visible while recording so the user can stop
-  }, 150);
-}
-
-function handleMicClick() {
-  state.isListening ? stopListening() : startListening();
-  if (state.activeField) state.activeField.focus();
-}
-
-function handleKeyDown(e) {
-  // Alt+Shift+V toggles recording for the focused field
-  if (e.altKey && e.shiftKey && e.key === 'V' && (state.activeField || state.isListening)) {
-    e.preventDefault();
-    handleMicClick();
+(async () => {
+  try {
+    await import(chrome.runtime.getURL("modules/main.js"));
+  } catch (err) {
+    console.error("[VoiceInput] Failed to load modules:", err);
   }
-}
-
-// ── Initialisation ─────────────────────────────────────────────────────────────
-
-function init() {
-  buildUI();
-
-  // mousedown preventDefault keeps focus in the active field during the click
-  state.micBtn.addEventListener('mousedown', e => e.preventDefault());
-  state.micBtn.addEventListener('click', handleMicClick);
-
-  document.addEventListener('focusin',  handleFocusIn,  true);
-  document.addEventListener('focusout', handleFocusOut, true);
-  document.addEventListener('keydown',  handleKeyDown,  true);
-  window.addEventListener('scroll', updatePosition, { passive: true, capture: true });
-  window.addEventListener('resize', updatePosition, { passive: true });
-
-  loadLanguage();
-  subscribeToLanguageChanges();
-}
-
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', init);
-} else {
-  init();
-}
+})();

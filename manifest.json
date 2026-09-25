@@ -22,13 +22,12 @@
       "matches": ["<all_urls>"],
       "js": ["content.js"],
       "css": ["content.css"],
-      "run_at": "document_idle",
-      "type": "module"
+      "run_at": "document_idle"
     }
   ],
   "web_accessible_resources": [
     {
-      "resources": ["shadow.css"],
+      "resources": ["shadow.css", "modules/*.js"],
       "matches": ["<all_urls>"]
     }
   ],
