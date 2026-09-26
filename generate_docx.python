@@ -1,0 +1,559 @@
+import re
+import sys
+from pathlib import Path
+
+from docx import Document
+from docx.enum.section import WD_SECTION
+from docx.enum.style import WD_STYLE_TYPE
+from docx.enum.text import WD_ALIGN_PARAGRAPH, WD_BREAK, WD_LINE_SPACING
+from docx.oxml import OxmlElement
+from docx.oxml.ns import qn
+from docx.shared import Cm, Pt
+
+
+# ============================================================
+# ԳԼՈԲԱԼ ԿԱՐԳԱՎՈՐՈՒՄՆԵՐ
+# ============================================================
+
+FONT_NAME = "GHEA Grapalat"
+
+PAGE_WIDTH = Cm(21.0)
+PAGE_HEIGHT = Cm(29.7)
+
+# Համաժողովի պահանջներով սահմանված դաշտեր
+MARGIN_TOP = Cm(5.0)
+MARGIN_BOTTOM = Cm(4.75)
+MARGIN_LEFT = Cm(6.2)
+MARGIN_RIGHT = Cm(1.8)
+FOOTER_DISTANCE = Cm(4.5)
+
+MAIN_FONT_SIZE = Pt(10)
+SMALL_FONT_SIZE = Pt(9)
+TITLE_FONT_SIZE = Pt(10)
+ABSTRACT_FONT_SIZE = Pt(9)
+
+LINE_SPACING = 1.15
+FIRST_LINE_INDENT = Cm(0.75)
+
+
+# ============================================================
+# ՕԺԱՆԴԱԿ ԳՈՐԾԱՌՈՒՅԹՆԵՐ
+# ============================================================
+
+def set_run_font(run, size=MAIN_FONT_SIZE, bold=False, italic=False):
+    """Սահմանում է GHEA Grapalat տառատեսակը և run-ի ոճը։"""
+    run.font.name = FONT_NAME
+    run.font.size = size
+    run.bold = bold
+    run.italic = italic
+
+    rpr = run._element.get_or_add_rPr()
+    rfonts = rpr.rFonts
+    if rfonts is None:
+        rfonts = OxmlElement("w:rFonts")
+        rpr.append(rfonts)
+
+    rfonts.set(qn("w:ascii"), FONT_NAME)
+    rfonts.set(qn("w:hAnsi"), FONT_NAME)
+    rfonts.set(qn("w:cs"), FONT_NAME)
+    rfonts.set(qn("w:eastAsia"), FONT_NAME)
+
+
+def set_paragraph_format(
+    paragraph,
+    alignment=WD_ALIGN_PARAGRAPH.JUSTIFY,
+    first_line=True,
+    space_before=0,
+    space_after=0,
+    line_spacing=LINE_SPACING,
+):
+    """Կիրառում է հիմնական պարբերության ձևաչափումը։"""
+    paragraph.alignment = alignment
+    fmt = paragraph.paragraph_format
+    fmt.line_spacing = line_spacing
+    fmt.space_before = Pt(space_before)
+    fmt.space_after = Pt(space_after)
+
+    if first_line:
+        fmt.first_line_indent = FIRST_LINE_INDENT
+    else:
+        fmt.first_line_indent = Cm(0)
+
+
+def add_text_with_bold_markdown(paragraph, text, size=MAIN_FONT_SIZE, italic=False):
+    """
+    Աջակցում է **թավ** նշագրմանը։
+    Օրինակ՝ '**Chrome for Developers.** Chrome Extensions Documentation'
+    """
+    parts = re.split(r"(\*\*.*?\*\*)", text)
+
+    for part in parts:
+        if not part:
+            continue
+
+        if part.startswith("**") and part.endswith("**"):
+            run = paragraph.add_run(part[2:-2])
+            set_run_font(run, size=size, bold=True, italic=italic)
+        else:
+            run = paragraph.add_run(part)
+            set_run_font(run, size=size, bold=False, italic=italic)
+
+
+def add_normal_paragraph(document, text):
+    paragraph = document.add_paragraph()
+    set_paragraph_format(paragraph, alignment=WD_ALIGN_PARAGRAPH.JUSTIFY, first_line=True)
+    add_text_with_bold_markdown(paragraph, text, size=MAIN_FONT_SIZE)
+    return paragraph
+
+
+def add_section_heading(document, text):
+    paragraph = document.add_paragraph()
+    set_paragraph_format(
+        paragraph,
+        alignment=WD_ALIGN_PARAGRAPH.LEFT,
+        first_line=False,
+        space_before=4,
+        space_after=2,
+    )
+    run = paragraph.add_run(text)
+    set_run_font(run, size=MAIN_FONT_SIZE, bold=True)
+    return paragraph
+
+
+def add_centered_bold(document, text, size=TITLE_FONT_SIZE, uppercase=False):
+    paragraph = document.add_paragraph()
+    set_paragraph_format(
+        paragraph,
+        alignment=WD_ALIGN_PARAGRAPH.CENTER,
+        first_line=False,
+        space_before=0,
+        space_after=0,
+    )
+    run = paragraph.add_run(text.upper() if uppercase else text)
+    set_run_font(run, size=size, bold=True)
+    return paragraph
+
+
+def add_udc(document, text):
+    paragraph = document.add_paragraph()
+    set_paragraph_format(
+        paragraph,
+        alignment=WD_ALIGN_PARAGRAPH.LEFT,
+        first_line=False,
+        space_before=0,
+        space_after=0,
+    )
+    run = paragraph.add_run(text)
+    set_run_font(run, size=MAIN_FONT_SIZE)
+    return paragraph
+
+
+def add_abstract(document, text, keywords, language="hy"):
+    paragraph = document.add_paragraph()
+    set_paragraph_format(
+        paragraph,
+        alignment=WD_ALIGN_PARAGRAPH.JUSTIFY,
+        first_line=False,
+        space_before=2,
+        space_after=0,
+        line_spacing=1.0,
+    )
+    add_text_with_bold_markdown(paragraph, text, size=ABSTRACT_FONT_SIZE)
+
+    key_label = {
+        "hy": "Առանցքային բառեր․ ",
+        "ru": "Ключевые слова: ",
+        "en": "Keywords: ",
+    }[language]
+
+    key_paragraph = document.add_paragraph()
+    set_paragraph_format(
+        key_paragraph,
+        alignment=WD_ALIGN_PARAGRAPH.JUSTIFY,
+        first_line=False,
+        space_before=0,
+        space_after=3,
+        line_spacing=1.0,
+    )
+
+    label = key_paragraph.add_run(key_label)
+    set_run_font(label, size=ABSTRACT_FONT_SIZE, bold=True, italic=True)
+
+    body = key_paragraph.add_run(keywords)
+    set_run_font(body, size=ABSTRACT_FONT_SIZE, italic=False)
+
+
+def add_bullet(document, text):
+    paragraph = document.add_paragraph()
+    set_paragraph_format(
+        paragraph,
+        alignment=WD_ALIGN_PARAGRAPH.JUSTIFY,
+        first_line=False,
+        space_before=0,
+        space_after=0,
+    )
+
+    bullet = paragraph.add_run("• ")
+    set_run_font(bullet, size=MAIN_FONT_SIZE)
+
+    add_text_with_bold_markdown(paragraph, text, size=MAIN_FONT_SIZE)
+    return paragraph
+
+
+def add_numbered_item(document, number, text):
+    paragraph = document.add_paragraph()
+    set_paragraph_format(
+        paragraph,
+        alignment=WD_ALIGN_PARAGRAPH.JUSTIFY,
+        first_line=False,
+        space_before=0,
+        space_after=0,
+    )
+
+    number_run = paragraph.add_run(f"{number}. ")
+    set_run_font(number_run, size=MAIN_FONT_SIZE, bold=True)
+
+    add_text_with_bold_markdown(paragraph, text, size=MAIN_FONT_SIZE)
+    return paragraph
+
+
+def add_literature_item(document, number, text):
+    paragraph = document.add_paragraph()
+    set_paragraph_format(
+        paragraph,
+        alignment=WD_ALIGN_PARAGRAPH.JUSTIFY,
+        first_line=False,
+        space_before=0,
+        space_after=0,
+        line_spacing=1.0,
+    )
+
+    num_run = paragraph.add_run(f"{number}. ")
+    set_run_font(num_run, size=SMALL_FONT_SIZE)
+
+    add_text_with_bold_markdown(paragraph, text, size=SMALL_FONT_SIZE)
+    return paragraph
+
+
+def add_page_break(document):
+    paragraph = document.add_paragraph()
+    run = paragraph.add_run()
+    run.add_break(WD_BREAK.PAGE)
+
+
+def configure_section(section):
+    """Կիրառում է էջի չափերն ու համաժողովի պահանջներով սահմանված դաշտերը։"""
+    section.page_width = PAGE_WIDTH
+    section.page_height = PAGE_HEIGHT
+    section.top_margin = MARGIN_TOP
+    section.bottom_margin = MARGIN_BOTTOM
+    section.left_margin = MARGIN_LEFT
+    section.right_margin = MARGIN_RIGHT
+    section.footer_distance = FOOTER_DISTANCE
+    section.header_distance = Cm(1.0)
+
+
+def set_document_defaults(document):
+    """Կարգավորում է փաստաթղթի հիմնական ոճերը։"""
+    configure_section(document.sections[0])
+
+    normal = document.styles["Normal"]
+    normal.font.name = FONT_NAME
+    normal.font.size = MAIN_FONT_SIZE
+    normal._element.rPr.rFonts.set(qn("w:ascii"), FONT_NAME)
+    normal._element.rPr.rFonts.set(qn("w:hAnsi"), FONT_NAME)
+    normal._element.rPr.rFonts.set(qn("w:cs"), FONT_NAME)
+    normal._element.rPr.rFonts.set(qn("w:eastAsia"), FONT_NAME)
+
+    normal.paragraph_format.line_spacing = LINE_SPACING
+    normal.paragraph_format.first_line_indent = FIRST_LINE_INDENT
+    normal.paragraph_format.space_before = Pt(0)
+    normal.paragraph_format.space_after = Pt(0)
+
+
+# ============================================================
+# MARKDOWN-Ի ՎԵՐԼՈՒԾՈՒԹՅՈՒՆ
+# ============================================================
+
+def parse_markdown(md_text):
+    """
+    Վերլուծում է փաստաթուղթը և վերադարձնում է բլոկների ցուցակ։
+    Աջակցվում են.
+      #  -> հիմնական վերնագիր
+      ## -> բաժնի վերնագիր
+      --- -> էջի բաժանում
+      -  -> կետային ցանկ
+      1. -> համարակալված ցանկ
+    """
+    blocks = []
+    lines = md_text.splitlines()
+    i = 0
+
+    while i < len(lines):
+        line = lines[i].strip()
+
+        if not line:
+            i += 1
+            continue
+
+        if line == "---":
+            blocks.append(("page_break", None))
+            i += 1
+            continue
+
+        if line.startswith("# "):
+            blocks.append(("title", line[2:].strip()))
+            i += 1
+            continue
+
+        if line.startswith("## "):
+            blocks.append(("heading", line[3:].strip()))
+            i += 1
+            continue
+
+        if line.startswith("- "):
+            blocks.append(("bullet", line[2:].strip()))
+            i += 1
+            continue
+
+        numbered = re.match(r"^(\d+)\.\s+(.*)$", line)
+        if numbered:
+            blocks.append(("numbered", (numbered.group(1), numbered.group(2))))
+            i += 1
+            continue
+
+        # Սովորական պարբերություն
+        paragraph_lines = [line]
+        i += 1
+
+        while i < len(lines):
+            next_line = lines[i].strip()
+
+            if (
+                not next_line
+                or next_line == "---"
+                or next_line.startswith("# ")
+                or next_line.startswith("## ")
+                or next_line.startswith("- ")
+                or re.match(r"^\d+\.\s+", next_line)
+            ):
+                break
+
+            paragraph_lines.append(next_line)
+            i += 1
+
+        blocks.append(("paragraph", " ".join(paragraph_lines)))
+
+    return blocks
+
+
+# ============================================================
+# ՀԱՏՈՒԿ ԲԱԺԻՆՆԵՐԻ ՁԵՎԱՎՈՐՈՒՄ
+# ============================================================
+
+def add_main_title_block(document, title):
+    """
+    Փաստաթղթի սկզբնական վերնագրային հատված.
+    UDC, հեղինակ, հոդվածի վերնագիր, ապա հայերեն անոտացիա։
+    """
+    # Title-ը ֆայլից վերցվում է, բայց փաստացի վերնագրային տվյալները
+    # ավելի խիստ ձևաչափվում են ըստ պահանջների։
+    add_udc(document, "ՀՏԴ 004.89:004.738.5")
+    add_centered_bold(document, "Ա. Ա. ՄԱՐՏԻՐՈՍՅԱՆ", size=TITLE_FONT_SIZE)
+    add_centered_bold(document, title, size=TITLE_FONT_SIZE, uppercase=True)
+
+
+def add_literature_heading(document):
+    paragraph = document.add_paragraph()
+    set_paragraph_format(
+        paragraph,
+        alignment=WD_ALIGN_PARAGRAPH.CENTER,
+        first_line=False,
+        space_before=4,
+        space_after=2,
+    )
+    run = paragraph.add_run("ԳՐԱԿԱՆՈՒԹՅԱՆ ՑԱՆԿ")
+    set_run_font(run, size=SMALL_FONT_SIZE, bold=True)
+    return paragraph
+
+
+def add_author_page(document):
+    add_page_break(document)
+
+    add_centered_bold(document, "ՀԵՂԻՆԱԿԻ ՏՎՅԱԼՆԵՐ", size=MAIN_FONT_SIZE, uppercase=True)
+
+    data = [
+        ("Ազգանուն, անուն, հայրանուն", "Արմեն Մարտիրոսյան Ազատի"),
+        ("Սովորելու վայր", "Հայաստանի ազգային պոլիտեխնիկական համալսարան"),
+        (
+            "Ամբիոն / բաժին",
+            "Հայաստանի ազգային պոլիտեխնիկական համալսարան, ՏՏ և ԻԿՄ ամբիոն, Տեղեկատվական տեխնոլոգիաներ բաժին",
+        ),
+        ("Կարգավիճակ", "Տեղեկատվական տեխնոլոգիաներ մասնագիտության 2-րդ կուրսի մագիստրոս"),
+        ("Գիտական ղեկավար", "Բորիս Մամիկոնյան"),
+        ("Գիտական աստիճան / պաշտոն", "______________________________________"),
+        ("Հեռախոսահամար", "091777418"),
+        ("Էլեկտրոնային փոստ", "armenmartirosyan020@gmail.com"),
+        ("Հեղինակի ստորագրություն", "______________________________"),
+    ]
+
+    for label, value in data:
+        paragraph = document.add_paragraph()
+        set_paragraph_format(
+            paragraph,
+            alignment=WD_ALIGN_PARAGRAPH.LEFT,
+            first_line=False,
+            space_before=1,
+            space_after=1,
+        )
+
+        run1 = paragraph.add_run(f"{label}՝ ")
+        set_run_font(run1, size=MAIN_FONT_SIZE, bold=True)
+
+        run2 = paragraph.add_run(value)
+        set_run_font(run2, size=MAIN_FONT_SIZE)
+
+
+# ============================================================
+# ՀԻՄՆԱԿԱՆ ԳԵՆԵՐԱՑՄԱՆ ԳՈՐԾԱՌՈՒՅԹ
+# ============================================================
+
+def build_document(md_path, output_path):
+    md_text = Path(md_path).read_text(encoding="utf-8")
+    blocks = parse_markdown(md_text)
+
+    document = Document()
+    set_document_defaults(document)
+
+    in_literature = False
+    title_processed = False
+
+    for block_type, content in blocks:
+        if block_type == "page_break":
+            add_page_break(document)
+            in_literature = False
+            continue
+
+        if block_type == "title":
+            if not title_processed:
+                add_main_title_block(document, content)
+                title_processed = True
+            else:
+                add_centered_bold(document, content, size=MAIN_FONT_SIZE, uppercase=True)
+            continue
+
+        if block_type == "heading":
+            normalized = content.strip().upper()
+
+            if normalized == "ԳՐԱԿԱՆՈՒԹՅԱՆ ՑԱՆԿ":
+                add_literature_heading(document)
+                in_literature = True
+                continue
+
+            if normalized in {"РЕЗЮМЕ", "SUMMARY", "ՀԵՂԻՆԱԿԻ ՏՎՅԱԼՆԵՐ"}:
+                add_centered_bold(document, content, size=MAIN_FONT_SIZE, uppercase=True)
+                in_literature = False
+                continue
+
+            add_section_heading(document, content)
+            in_literature = False
+            continue
+
+        if block_type == "bullet":
+            add_bullet(document, content)
+            continue
+
+        if block_type == "numbered":
+            number, text = content
+            if in_literature:
+                add_literature_item(document, number, text)
+            else:
+                add_numbered_item(document, number, text)
+            continue
+
+        if block_type == "paragraph":
+            text = content
+
+            # Հայերեն անոտացիայի և առանցքային բառերի հատուկ ձևավորում
+            if text.startswith("## Ամփոփում"):
+                continue
+
+            if text.startswith("***Առանցքային բառեր"):
+                continue
+
+            # Ռուսերեն / անգլերեն ամփոփումների համար
+            if text.startswith("***Ключевые слова"):
+                continue
+
+            if text.startswith("***Keywords"):
+                continue
+
+            # Հայերեն ամփոփման հատուկ հատվածի հայտնաբերում
+            if (
+                "Հոդվածում ուսումնասիրվում են վեբ-զննիչի ձայնային օգնականների հիմնական հնարավորությունները"
+                in text
+            ):
+                add_abstract(
+                    document,
+                    text,
+                    "վեբ-զննիչ, ձայնային օգնական, խոսքի ճանաչում, թելադրանք, մատչելիություն, բնական լեզվի մշակում, արհեստական բանականություն։",
+                    language="hy",
+                )
+                continue
+
+            # Ռուսերեն ամփոփման հատուկ հատված
+            if text.startswith("СРАВНИТЕЛЬНЫЙ АНАЛИЗ"):
+                add_centered_bold(document, text, size=SMALL_FONT_SIZE, uppercase=True)
+                continue
+
+            if text.startswith("В статье рассматриваются основные возможности"):
+                add_abstract(
+                    document,
+                    text,
+                    "веб-браузер, голосовой помощник, распознавание речи, диктовка, доступность, обработка естественного языка, искусственный интеллект.",
+                    language="ru",
+                )
+                continue
+
+            # Անգլերեն ամփոփման հատուկ հատված
+            if text.startswith("COMPARATIVE ANALYSIS OF WEB BROWSER"):
+                add_centered_bold(document, text, size=SMALL_FONT_SIZE, uppercase=True)
+                continue
+
+            if text.startswith("The article examines the main capabilities"):
+                add_abstract(
+                    document,
+                    text,
+                    "web browser, voice assistant, speech recognition, dictation, accessibility, natural language processing, artificial intelligence.",
+                    language="en",
+                )
+                continue
+
+            add_normal_paragraph(document, text)
+
+    # Հեղինակային տվյալների առանձին էջ
+    add_author_page(document)
+
+    document.save(output_path)
+    print(f"DOCX ֆայլը հաջողությամբ ստեղծվել է՝ {output_path}")
+
+
+def main():
+    if len(sys.argv) < 2:
+        print("Օգտագործում՝")
+        print("python generate_docx.py article.md")
+        print("կամ")
+        print("python generate_docx.py article.md article.docx")
+        sys.exit(1)
+
+    input_md = sys.argv[1]
+    output_docx = sys.argv[2] if len(sys.argv) >= 3 else "article.docx"
+
+    if not Path(input_md).exists():
+        raise FileNotFoundError(f"Markdown ֆայլը չի գտնվել՝ {input_md}")
+
+    build_document(input_md, output_docx)
+
+
+if __name__ == "__main__":
+    main()
